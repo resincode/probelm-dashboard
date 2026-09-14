@@ -15,6 +15,7 @@ async function signOut() {
       <NuxtLink to="/admin/models">{{ t('common.modelMappings') }}</NuxtLink>
       <NuxtLink to="/admin/settings">{{ t('common.settings') }}</NuxtLink>
       <div class="row" style="margin-left:auto;gap:10px">
+        <ThemeToggle />
         <LanguageSwitcher />
         <button class="row" @click="signOut"><LogOut :size="15" /> {{ t('common.signOut') }}</button>
       </div>

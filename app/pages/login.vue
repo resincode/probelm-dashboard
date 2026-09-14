@@ -19,7 +19,10 @@ async function submit() {
   <main class="login-shell stack">
     <div class="row spread">
       <NuxtLink to="/">{{ t('login.publicDashboard') }}</NuxtLink>
-      <LanguageSwitcher />
+      <div class="row" style="gap:8px">
+        <ThemeToggle />
+        <LanguageSwitcher />
+      </div>
     </div>
     <h1>{{ t('login.title') }}</h1>
     <p class="muted">{{ t('login.subtitle') }}</p>

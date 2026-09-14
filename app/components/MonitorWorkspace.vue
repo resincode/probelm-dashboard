@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, Search, List, LayoutGrid, Menu, X, RefreshCw, Settings, ChevronRight, ExternalLink, Info, AlertTriangle } from 'lucide-vue-next'
+import { Activity, Search, List, LayoutGrid, Menu, X, RefreshCw, Settings, ChevronRight, Info, AlertTriangle, Link2, Check } from 'lucide-vue-next'
 import type { PublicOverview, ModelHistory, CanonicalModel, MonitorStatus, HistoryPoint, HistoryBucket, ProviderHistory } from '../../shared/types'
 
 const { t, formatDate, formatNumber, setDateFormat, formatRelativeTime } = useI18n()
@@ -31,7 +31,21 @@ const detailTitle = ref('')
 const detailBucket = ref<HistoryBucket | null>(null)
 const customFrom = ref('')
 const customTo = ref('')
+const copied = ref(false)
+let copyTimer: ReturnType<typeof setTimeout> | undefined
 
+async function copyModelLink() {
+  if (!import.meta.client) return
+  try {
+    const url = `${window.location.origin}/?model=${selectedId.value}`
+    await navigator.clipboard.writeText(url)
+    copied.value = true
+    clearTimeout(copyTimer)
+    copyTimer = setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    // Fallback
+  }
+}
 let timer: number | undefined
 let historyRequest = 0
 let overviewRequest = 0
@@ -269,6 +283,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
         <button class="icon-button" :disabled="loading || historyLoading" :aria-label="t('common.refresh')" @click="refresh">
           <RefreshCw :size="15" />
         </button>
+        <ThemeToggle />
         <LanguageSwitcher />
         <NuxtLink to="/admin/providers" :aria-label="t('common.administration')">
           <Settings :size="18" />
@@ -390,14 +405,17 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
                 <div class="row" style="gap: 10px; align-items: center; flex-wrap: wrap;">
                   <ModelLogo :canonical-name="selectedModel?.canonicalName || history?.model.canonicalName" :display-name="selectedModel?.displayName || history?.model.displayName" :icon-key="selectedModel?.iconKey || history?.model.iconKey" :size="24" />
                   <h1>{{ selectedModel?.displayName ?? history?.model.displayName ?? `Model #${selectedId}` }}</h1>
-                  <NuxtLink
-                    :to="{ path: `/models/${selectedId}/history`, query: { ...route.query, model: undefined } }"
-                    class="action-icon-btn"
-                    :title="t('workspace.historyPermalink')"
-                    :aria-label="t('workspace.historyPermalink')"
+                  <button
+                    type="button"
+                    class="action-icon-btn copy-link-btn"
+                    :class="{ copied }"
+                    :title="copied ? t('workspace.copied') : t('workspace.copyLink')"
+                    :aria-label="copied ? t('workspace.copied') : t('workspace.copyLink')"
+                    @click="copyModelLink"
                   >
-                    <ExternalLink :size="15" />
-                  </NuxtLink>
+                    <Check v-if="copied" :size="15" class="copy-success-icon" />
+                    <Link2 v-else :size="15" />
+                  </button>
                   <button
                     type="button"
                     class="action-icon-btn info-btn"
@@ -650,10 +668,17 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: #141f33;
-  border: 1px solid #263349;
+  background: var(--bg-hover, #141f33);
+  border: 1px solid var(--border-color, #263349);
   border-radius: 6px;
   padding: 8px 10px;
+}
+.action-icon-btn.copy-link-btn.copied {
+  color: var(--success-color, #4ade80);
+  border-color: var(--success-color, #4ade80);
+}
+.copy-success-icon {
+  color: var(--success-color, #4ade80);
 }
 .tiny {
   font-size: 10px;

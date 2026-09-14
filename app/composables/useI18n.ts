@@ -36,7 +36,8 @@ const en: TranslationDictionary = {
   'common.notScheduled': 'Not scheduled',
   'common.idle': 'Idle',
   'common.running': 'Running #{n}',
-
+  'common.switchToLight': 'Switch to light mode',
+  'common.switchToDark': 'Switch to dark mode',
   // Time & Relative
   'time.justNow': 'just now',
   'time.secondsAgo': '{n} seconds ago',
@@ -102,7 +103,8 @@ const en: TranslationDictionary = {
   'workspace.canonicalModel': 'CANONICAL MODEL',
   'workspace.gatewayComparison': 'GATEWAY COMPARISON',
   'workspace.historyPermalink': 'History permalink',
-  'workspace.timeRange': 'Time range',
+  'workspace.copyLink': 'Copy model link to clipboard',
+  'workspace.copied': 'Link copied!',
   'workspace.last12h': 'Last 12 hours',
   'workspace.last24h': 'Last 24 hours',
   'workspace.last7d': 'Last 7 days',
@@ -288,9 +290,8 @@ const id: TranslationDictionary = {
   'common.notScheduled': 'Tidak dijadwalkan',
   'common.idle': 'Siaga',
   'common.running': 'Sedang berjalan #{n}',
-
-  // Time & Relative
-  'time.justNow': 'baru saja',
+  'common.switchToLight': 'Beralih ke mode terang',
+  'common.switchToDark': 'Beralih ke mode gelap',
   'time.secondsAgo': '{n} detik lalu',
   'time.minuteAgo': '1 menit lalu',
   'time.minutesAgo': '{n} menit lalu',
@@ -356,8 +357,8 @@ const id: TranslationDictionary = {
   'workspace.canonicalModel': 'MODEL KANONIKAL',
   'workspace.gatewayComparison': 'PERBANDINGAN GATEWAY',
   'workspace.historyPermalink': 'Tautan permanen riwayat',
-  'workspace.timeRange': 'Rentang waktu',
-  'workspace.last12h': '12 jam terakhir',
+  'workspace.copyLink': 'Salin tautan model ke clipboard',
+  'workspace.copied': 'Tautan disalin!',
   'workspace.last24h': '24 jam terakhir',
   'workspace.last7d': '7 hari terakhir',
   'workspace.customRange': 'Rentang kustom',

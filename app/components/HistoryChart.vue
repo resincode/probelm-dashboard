@@ -5,6 +5,7 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, 
 const props = defineProps<{ series: ProviderHistory[]; metric: 'ttftMs' | 'totalMs' | 'ratePerSec'; from: number; to: number; intervalMinutes: number }>()
 const emit = defineEmits<{ sample: [point: HistoryPoint, providerName: string] }>()
 const { locale, t } = useI18n()
+const { theme } = useTheme()
 const canvas = ref<HTMLCanvasElement | null>(null)
 type ChartPoint = { x: number; y: number | null; sample?: HistoryPoint }
 let chart: Chart<'line', ChartPoint[]> | null = null
@@ -17,6 +18,10 @@ function render() {
   if (!canvas.value) return
   chart?.destroy()
   const loc = locale.value === 'id' ? 'id-ID' : 'en-US'
+  const isLight = theme.value === 'light'
+  const gridColor = isLight ? '#e2e8f0' : '#26334966'
+  const textColor = isLight ? '#64748b' : '#91a2bb'
+  const legendColor = isLight ? '#334155' : '#aebed4'
   const datasets = props.series.map((series) => {
     const points: ChartPoint[] = []
     let previous: HistoryPoint | undefined
@@ -42,7 +47,7 @@ function render() {
         if (point?.sample && provider) emit('sample', point.sample, provider)
       },
       plugins: {
-        legend: { display: true, labels: { color: '#aebed4', boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        legend: { display: true, labels: { color: legendColor, boxWidth: 10, boxHeight: 10, usePointStyle: true } },
         tooltip: {
           callbacks: {
             title: items => items[0]?.parsed.x != null ? new Date(items[0].parsed.x).toLocaleString(loc) : '',
@@ -51,13 +56,13 @@ function render() {
         },
       },
       scales: {
-        x: { type: 'linear', min: props.from, max: props.to, grid: { color: '#26334966' }, ticks: { color: '#91a2bb', maxTicksLimit: 7, callback: value => new Date(Number(value)).toLocaleString(loc, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
-        y: { beginAtZero: true, title: { display: true, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: '#91a2bb' }, ticks: { color: '#91a2bb' }, grid: { color: '#26334966' } },
+        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 7, callback: value => new Date(Number(value)).toLocaleString(loc, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
+        y: { beginAtZero: true, title: { display: true, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: 9, precision: 0 }, grid: { color: gridColor } },
       },
     },
   })
 }
-watch(() => [props.series, props.metric, props.from, props.to, props.intervalMinutes, locale.value], render)
+watch(() => [props.series, props.metric, props.from, props.to, props.intervalMinutes, locale.value, theme.value], render)
 onMounted(render)
 onUnmounted(() => chart?.destroy())
 </script>
