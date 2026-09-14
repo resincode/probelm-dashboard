@@ -1,0 +1,37 @@
+# Install together with probelm-dashboard-web.container; setup commands are there.
+# No timer: worker reads the admin-managed schedule and maintains its own lease.
+[Unit]
+Description=ProbeLLM scheduled probelm worker
+Wants=network-online.target probelm-dashboard-web.service
+After=network-online.target probelm-dashboard-web.service
+
+[Container]
+Image=localhost/probelm-dashboard:latest
+Pull=never
+ContainerName=probelm-dashboard-worker
+Exec=node node_modules/tsx/dist/cli.mjs scripts/worker.ts
+User=1000:1000
+Network=probelm-dashboard.network
+Volume=probelm-dashboard-data.volume:/data:U
+Secret=probelm-dashboard-master-key,type=mount,target=probe_master_key,uid=1000,gid=1000,mode=0400
+EnvironmentFile=%h/.config/probelm-dashboard/environment
+Environment=NODE_ENV=production PROBE_DB=/data/dashboard.db PROBE_MASTER_KEY_FILE=/run/secrets/probe_master_key NODE_OPTIONS=--max-old-space-size=384
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+Tmpfs=/tmp:rw,nosuid,nodev,size=64m,mode=1777
+PodmanArgs=--init --pids-limit=128 --memory=512m --cpus=1
+HealthCmd=node scripts/worker-healthcheck.mjs
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=30s
+StopTimeout=45
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

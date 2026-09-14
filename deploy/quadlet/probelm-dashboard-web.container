@@ -1,0 +1,54 @@
+# Rootless Linux, Podman 5+ with Quadlet; do NOT run Compose concurrently.
+# Build/load the same native image first, then from the repository root:
+#   ./deploy/init.sh
+#   podman secret create probelm-dashboard-master-key .secrets/master-key
+# Secret create is FIRST INSTALL ONLY; never replace the key for an existing DB.
+#   mkdir -p "$HOME/.config/containers/systemd" "$HOME/.config/probelm-dashboard"
+#   cp deploy/quadlet/*.container deploy/quadlet/*.volume deploy/quadlet/*.network "$HOME/.config/containers/systemd/"
+#   cp -n deploy/quadlet/environment.example "$HOME/.config/probelm-dashboard/environment"
+#   chmod 600 "$HOME/.config/probelm-dashboard/environment"
+#   systemctl --user daemon-reload
+#   systemctl --user start probelm-dashboard-web.service probelm-dashboard-worker.service
+# Enable boot without login (administrator approval may be required):
+#   loginctl enable-linger "$USER"
+# Generated units autostart via [Install]; do not systemctl enable generated services.
+# Preserve the named volume AND matching encryption master key when moving hosts.
+# Existing host npm timer must be stopped/disabled before switching worker ownership:
+#   sudo systemctl disable --now probelm-dashboard-probe.timer
+# Compose and Quadlet use the SAME default named data volume under the same user.
+[Unit]
+Description=ProbeLLM public dashboard and private admin
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image=localhost/probelm-dashboard:latest
+Pull=never
+ContainerName=probelm-dashboard-web
+Exec=node .output/server/index.mjs
+User=1000:1000
+Network=probelm-dashboard.network
+Volume=probelm-dashboard-data.volume:/data:U
+Secret=probelm-dashboard-master-key,type=mount,target=probe_master_key,uid=1000,gid=1000,mode=0400
+PublishPort=127.0.0.1:3000:3000
+EnvironmentFile=%h/.config/probelm-dashboard/environment
+Environment=NODE_ENV=production PROBE_DB=/data/dashboard.db PROBE_MASTER_KEY_FILE=/run/secrets/probe_master_key NODE_OPTIONS=--max-old-space-size=384
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+Tmpfs=/tmp:rw,nosuid,nodev,size=64m,mode=1777
+PodmanArgs=--init --pids-limit=128 --memory=512m --cpus=1
+HealthCmd=node scripts/web-healthcheck.mjs
+HealthInterval=15s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=30s
+StopTimeout=45
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

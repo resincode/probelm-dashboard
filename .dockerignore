@@ -1,0 +1,22 @@
+# Keep aligned with .containerignore for Compose providers using this filename.
+.git
+.gitignore
+.forgeguard
+node_modules
+.nuxt
+.output
+dist
+.secrets
+.env
+.env.*
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.pem
+*.key
+backups
+deploy
+.DS_Store

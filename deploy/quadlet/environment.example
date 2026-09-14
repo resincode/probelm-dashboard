@@ -1,0 +1,10 @@
+# Linux production assumes an HTTPS reverse proxy in front of 127.0.0.1:3000.
+# Set false ONLY for local HTTP access; secure cookies will not work over plain HTTP.
+COOKIE_SECURE=true
+# Set the canonical external origin for reverse-proxy login/CSRF validation.
+# APP_ORIGIN=https://status.example.com
+# Explicit trust exception for host 9Router; blank disables all private-host access.
+PROBE_ALLOWED_PRIVATE_HOSTS=host.containers.internal
+# Applied only when bootstrapping a fresh database; password change is mandatory.
+ADMIN_INITIAL_USERNAME=admin
+ADMIN_INITIAL_PASSWORD=piknik
