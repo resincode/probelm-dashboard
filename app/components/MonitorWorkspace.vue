@@ -191,15 +191,10 @@ async function loadHistory(resetProviders = false) {
     if (request !== historyRequest) return
     history.value = data
     if (resetProviders || !providerIds.value.length) {
-      if (providerFilter.value !== 'all') {
-        const targetId = Number(providerFilter.value)
-        providerIds.value = data.series.some(s => s.provider.id === targetId) ? [targetId] : data.series.map(s => s.provider.id)
-      } else {
-        providerIds.value = data.series.map(s => s.provider.id)
-      }
+      providerIds.value = data.series.map(s => s.provider.id)
     } else {
-      providerIds.value = providerIds.value.filter(id => data.series.some(s => s.provider.id === id))
-      if (!providerIds.value.length) providerIds.value = data.series.map(s => s.provider.id)
+      const existing = providerIds.value.filter(id => data.series.some(s => s.provider.id === id))
+      providerIds.value = existing.length ? existing : data.series.map(s => s.provider.id)
     }
   } catch (cause) { if (request === historyRequest) { history.value = null; historyError.value = cause instanceof Error ? cause.message : 'Could not load history.' } }
   finally { if (request === historyRequest) historyLoading.value = false }
@@ -987,13 +982,18 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   flex: 1;
 }
 .chart-card {
-  min-height: 280px;
-  height: 340px;
+  min-height: 320px;
+  height: 390px;
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 14px;
+}
+.primary-chart {
+  flex: 1;
+  min-height: 240px;
+  position: relative;
 }
 .metric-tabs {
   gap: 4px;
@@ -1118,7 +1118,45 @@ summary {
     display: none;
   }
   .chart-card {
-    height: 240px;
+    height: 320px;
+  }
+}
+@media (max-width: 700px) {
+  .workspace-header {
+    height: 50px;
+  }
+  .mobile-only {
+    display: inline-flex;
+  }
+  .model-sidebar {
+    display: none;
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 85vw);
+    z-index: 30;
+  }
+  .model-sidebar.drawer-open {
+    display: flex;
+  }
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: #020611bb;
+  }
+  .detail-heading h1 {
+    font-size: 17px;
+  }
+  .range-controls > label {
+    min-width: 0;
+    width: 120px;
+  }
+  .worker-label {
+    font-size: 10px;
+  }
+  .chart-card {
+    height: 280px;
   }
 }
 @media (max-width: 700px) {
