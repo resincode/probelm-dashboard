@@ -19,6 +19,7 @@ function render() {
   chart?.destroy()
   const loc = locale.value === 'id' ? 'id-ID' : 'en-US'
   const isLight = theme.value === 'light'
+  const compact = import.meta.client && window.innerWidth <= 640
   const gridColor = isLight ? '#e2e8f0' : '#26334966'
   const textColor = isLight ? '#64748b' : '#91a2bb'
   const legendColor = isLight ? '#334155' : '#aebed4'
@@ -47,7 +48,7 @@ function render() {
         if (point?.sample && provider) emit('sample', point.sample, provider)
       },
       plugins: {
-        legend: { display: true, labels: { color: legendColor, boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        legend: { display: true, position: compact ? 'bottom' : 'top', labels: { color: legendColor, boxWidth: compact ? 8 : 10, boxHeight: compact ? 8 : 10, padding: compact ? 8 : 12, usePointStyle: true, font: { size: compact ? 10 : 12 } } },
         tooltip: {
           callbacks: {
             title: items => items[0]?.parsed.x != null ? new Date(items[0].parsed.x).toLocaleString(loc) : '',
@@ -56,8 +57,8 @@ function render() {
         },
       },
       scales: {
-        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: 7, callback: value => new Date(Number(value)).toLocaleString(loc, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
-        y: { beginAtZero: true, title: { display: true, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: 9, precision: 0 }, grid: { color: gridColor } },
+        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: compact ? 4 : 7, maxRotation: 0, autoSkip: true, callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
+        y: { beginAtZero: true, title: { display: !compact, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: compact ? 5 : 9, precision: 0, callback: value => `${value}${props.metric === 'ratePerSec' ? ' tok/s' : ' ms'}` }, grid: { color: gridColor } },
       },
     },
   })
