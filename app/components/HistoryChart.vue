@@ -9,6 +9,7 @@ const { theme } = useTheme()
 const canvas = ref<HTMLCanvasElement | null>(null)
 type ChartPoint = { x: number; y: number | null; sample?: HistoryPoint }
 let chart: Chart<'line', ChartPoint[]> | null = null
+let resizeObserver: ResizeObserver | undefined
 const colors = ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#facc15', '#2dd4bf', '#818cf8', '#60a5fa', '#fb7185']
 function getProviderColor(id: number | string) {
   const num = typeof id === 'number' ? id : Array.from(String(id)).reduce((acc, c) => acc + c.charCodeAt(0), 0)
@@ -39,7 +40,8 @@ function render() {
     type: 'line', data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false, normalized: false,
-      interaction: { mode: 'nearest', intersect: false },
+      layout: { padding: compact ? { top: 4, right: 4, bottom: 2, left: 2 } : { top: 4, right: 8, bottom: 4, left: 4 } },
+      interaction: { mode: 'nearest', intersect: compact },
       onClick: (_event, elements) => {
         const element = elements[0]
         if (!element) return
@@ -48,7 +50,7 @@ function render() {
         if (point?.sample && provider) emit('sample', point.sample, provider)
       },
       plugins: {
-        legend: { display: true, position: compact ? 'bottom' : 'top', labels: { color: legendColor, boxWidth: compact ? 8 : 10, boxHeight: compact ? 8 : 10, padding: compact ? 8 : 12, usePointStyle: true, font: { size: compact ? 10 : 12 } } },
+        legend: { display: !compact, position: 'top', labels: { color: legendColor, boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, font: { size: 12 } } },
         tooltip: {
           callbacks: {
             title: items => items[0]?.parsed.x != null ? new Date(items[0].parsed.x).toLocaleString(loc) : '',
@@ -64,8 +66,14 @@ function render() {
   })
 }
 watch(() => [props.series, props.metric, props.from, props.to, props.intervalMinutes, locale.value, theme.value], render)
-onMounted(render)
-onUnmounted(() => chart?.destroy())
+onMounted(() => {
+  render()
+  if (canvas.value?.parentElement) {
+    resizeObserver = new ResizeObserver(() => render())
+    resizeObserver.observe(canvas.value.parentElement)
+  }
+})
+onUnmounted(() => { resizeObserver?.disconnect(); chart?.destroy() })
 </script>
 <template>
   <div class="chart-surface"><canvas ref="canvas" role="img" :aria-label="`${metric === 'ttftMs' ? 'Time to first token' : metric === 'totalMs' ? 'Total latency' : 'Throughput'} by provider. Missing intervals are gaps. Open the samples table for accessible values.`" /></div>

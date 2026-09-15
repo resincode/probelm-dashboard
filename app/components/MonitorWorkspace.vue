@@ -1087,17 +1087,34 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
 .history-block {
   flex: 1;
   min-width: 2px;
-  border: 0;
-  border-radius: 2px;
+  min-height: 30px;
+  border: 2px solid transparent;
+  border-radius: 5px;
   padding: 0;
-  opacity: 0.9;
-}
-.history-block:hover,
-.history-block:focus {
   opacity: 1;
-  outline: 2px solid white;
-  outline-offset: 1px;
-  transform: scaleY(1.15);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.22);
+}
+.history-block.up { background: #15803d; border-color: #4ade80; }
+.history-block.slow { background: #b45309; border-color: #fbbf24; }
+.history-block.down { background: #b91c1c; border-color: #f87171; }
+.history-block.stale { background: #92400e; border-color: #f59e0b; }
+.history-block.no-data { background: #475569; border-color: #cbd5e1; }
+.history-block.configuration-error { background: #a21caf; border-color: #f0abfc; }
+:global([data-theme="light"]) .history-block.up { background: #bbf7d0; border-color: #15803d; }
+:global([data-theme="light"]) .history-block.slow { background: #fef3c7; border-color: #b45309; }
+:global([data-theme="light"]) .history-block.down { background: #fecaca; border-color: #b91c1c; }
+:global([data-theme="light"]) .history-block.stale { background: #fed7aa; border-color: #c2410c; }
+:global([data-theme="light"]) .history-block.no-data { background: #e2e8f0; border-color: #475569; }
+:global([data-theme="light"]) .history-block.configuration-error { background: #f5d0fe; border-color: #a21caf; }
+.history-block:hover,
+.history-block:focus-visible {
+  opacity: 1;
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+  transform: translateY(-2px);
+}
+@media (max-width: 700px) {
+  .history-block { min-height: 26px; border-width: 1px; }
 }
 .table-scroll {
   overflow-x: auto;
@@ -1219,7 +1236,23 @@ summary {
     font-size: 10px;
   }
   .chart-card {
-    height: 220px;
+    height: 330px;
+  }
+  .chart-card .provider-overlays {
+    max-height: 58px;
+  }
+  .history-panel {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  .history-blocks {
+    min-height: 26px;
+    gap: 3px;
+  }
+  .provider-history > .row.spread {
+    align-items: flex-start;
+  }
+  .provider-history > .row.spread > .muted {
+    flex-basis: 100%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
