@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, Search, List, LayoutGrid, Menu, X, RefreshCw, Settings, ChevronRight, Info, AlertTriangle, Link2, Check } from 'lucide-vue-next'
+import { Activity, Search, List, LayoutGrid, Menu, X, RefreshCw, Settings, ChevronRight, Info, AlertTriangle, Link2, Check, Timer, Gauge, Zap } from 'lucide-vue-next'
 import type { PublicOverview, ModelHistory, CanonicalModel, MonitorStatus, HistoryPoint, HistoryBucket, ProviderHistory } from '../../shared/types'
 
 const { t, formatDate, formatNumber, setDateFormat, formatRelativeTime } = useI18n()
@@ -277,7 +277,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
           :aria-label="t('workspace.workerModalTitle')"
           @click="workerDialog?.showModal()"
         >
-          <span class="worker-dot" :class="{ pulsing: overview.worker.online }" />
+          <span class="worker-dot" :class="{ pulsing: overview.worker.online, offline: !overview.worker.online }" />
           {{ overview.worker.online ? t('common.workerOnline') : t('common.workerOffline') }}
         </button>
         <button class="icon-button" :disabled="loading || historyLoading" :aria-label="t('common.refresh')" @click="refresh">
@@ -448,9 +448,9 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
           <section class="chart-card panel" aria-label="Primary model chart">
             <div class="row spread">
               <div class="row metric-tabs" role="group" aria-label="Chart metric">
-                <button :aria-pressed="metric === 'ttftMs'" @click="metric = 'ttftMs'">{{ t('workspace.ttft') }}</button>
-                <button :aria-pressed="metric === 'totalMs'" @click="metric = 'totalMs'">{{ t('workspace.totalLatency') }}</button>
-                <button :aria-pressed="metric === 'ratePerSec'" @click="metric = 'ratePerSec'">{{ t('workspace.throughput') }}</button>
+                <button class="metric-tab" :aria-pressed="metric === 'ttftMs'" :title="t('workspace.ttftHelp')" @click="metric = 'ttftMs'"><Timer :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.ttft') }}</strong><small>{{ t('workspace.ttftHelp') }}</small></span></button>
+                <button class="metric-tab" :aria-pressed="metric === 'totalMs'" :title="t('workspace.totalLatencyHelp')" @click="metric = 'totalMs'"><Gauge :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.totalLatency') }}</strong><small>{{ t('workspace.totalLatencyHelp') }}</small></span></button>
+                <button class="metric-tab" :aria-pressed="metric === 'ratePerSec'" :title="t('workspace.throughputHelp')" @click="metric = 'ratePerSec'"><Zap :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.throughput') }}</strong><small>{{ t('workspace.throughputHelp') }}</small></span></button>
               </div>
               <span class="muted small">{{ t('workspace.samplesInfo', { n: sampleRows.length.toLocaleString() }) }}</span>
             </div>
@@ -583,7 +583,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
       <div v-if="overview" class="stack small" style="margin-top: 14px; gap: 12px;">
         <div class="row spread panel" style="padding: 10px 14px; margin: 0;">
           <div class="row" style="gap: 8px;">
-            <span class="worker-dot" :class="{ pulsing: overview.worker.online }" style="width: 9px; height: 9px;" />
+            <span class="worker-dot" :class="{ pulsing: overview.worker.online, offline: !overview.worker.online }" style="width: 9px; height: 9px;" />
             <strong>{{ overview.worker.online ? t('settings.heartbeatHealthy') : t('settings.workerOfflineStale') }}</strong>
           </div>
           <span v-if="overview.worker.lastRunStatus" class="badge" :class="overview.worker.lastRunStatus === 'completed' ? 'success' : 'danger'">
