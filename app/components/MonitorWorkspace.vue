@@ -446,6 +446,13 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
             </form>
           </section>
           <section class="chart-card panel" aria-label="Primary model chart">
+            <div class="comparison-heading">
+              <div>
+                <p class="eyebrow">{{ t('workspace.providerComparisonEyebrow') }}</p>
+                <h2>{{ t('workspace.providerComparisonTitle') }}</h2>
+              </div>
+              <span class="muted small">{{ t('workspace.providerComparisonHint') }}</span>
+            </div>
             <div class="row spread">
               <div class="row metric-tabs" role="group" aria-label="Chart metric">
                 <button class="metric-tab" :aria-pressed="metric === 'ttftMs'" :title="t('workspace.ttftHelp')" @click="metric = 'ttftMs'"><Timer :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.ttft') }}</strong><small>{{ t('workspace.ttftHelp') }}</small></span></button>
@@ -482,7 +489,13 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
             <p v-if="history?.truncated" class="notice small">{{ t('workspace.limitNotice') }}</p>
           </section>
           <section v-if="history" class="history-panel" aria-label="Provider uptime and samples">
-            <div class="status-legend"><span v-for="status in statuses" :key="status" class="small"><span class="dot" :class="status" /> {{ status }}</span></div>
+            <div class="timeline-heading">
+              <div>
+                <p class="eyebrow">{{ t('workspace.statusTimelineEyebrow') }}</p>
+                <h2>{{ t('workspace.statusTimelineTitle') }}</h2>
+              </div>
+              <div class="status-legend"><span v-for="status in statuses" :key="status" class="small"><span class="dot" :class="status" /> {{ status }}</span></div>
+            </div>
             <article v-for="series in visibleSeries" :key="series.provider.id" class="provider-history panel">
               <div class="row spread">
                 <h2 class="row" style="gap:8px;align-items:center">
@@ -1064,6 +1077,14 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   flex-direction: column;
   gap: 10px;
 }
+.timeline-heading, .comparison-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.timeline-heading .status-legend { justify-content: flex-end; }
 .status-legend {
   display: flex;
   gap: 10px;
@@ -1245,6 +1266,12 @@ summary {
   }
   .worker-label {
     font-size: 10px;
+  }
+  .comparison-heading, .timeline-heading {
+    align-items: flex-start;
+  }
+  .timeline-heading .status-legend {
+    justify-content: flex-start;
   }
   .chart-card {
     height: 330px;
