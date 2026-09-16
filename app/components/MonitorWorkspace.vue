@@ -454,11 +454,11 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
               </div>
               <span class="muted small">{{ t('workspace.samplesInfo', { n: sampleRows.length.toLocaleString() }) }}</span>
             </div>
-            <div v-if="history" class="provider-overlays" role="group" aria-label="Provider overlays">
-              <label v-for="series in history.series" :key="series.provider.id" class="check">
+            <div v-if="history" class="provider-overlays provider-comparison-chips" role="group" aria-label="Provider overlays">
+              <label v-for="series in history.series" :key="series.provider.id" class="check provider-comparison-chip">
                 <input v-model="providerIds" type="checkbox" :value="series.provider.id" />
                 <ProviderBadge :provider-id="series.provider.id" :name="series.provider.name" :icon-url="series.provider.iconUrl" :size="14" />
-                {{ series.provider.name }}
+                <span>{{ series.provider.name }}</span>
               </label>
               <span v-if="!history.series.length" class="muted small">{{ t('workspace.noProvidersInProfile') }}</span>
             </div>
@@ -724,13 +724,6 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   font-family: ui-monospace, monospace;
   line-height: 1.5;
   overflow-wrap: anywhere;
-}
-.provider-color-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 .compact-provider-grid {
   display: flex;
@@ -1034,6 +1027,24 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   max-height: 40px;
   overflow-y: auto;
   flex-shrink: 0;
+}
+.provider-comparison-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: #0f1724;
+  white-space: nowrap;
+}
+.provider-comparison-chip:has(input:checked) {
+  border-color: #38bdf8;
+  background: #173148;
+}
+@media (max-width: 700px) {
+  .provider-comparison-chips { max-height: 74px; gap: 5px; }
+  .provider-comparison-chip { font-size: 11px; }
 }
 .primary-chart {
   flex: 1;
