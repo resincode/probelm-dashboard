@@ -10,13 +10,31 @@ const canvas = ref<HTMLCanvasElement | null>(null)
 type ChartPoint = { x: number; y: number | null; sample?: HistoryPoint }
 let chart: Chart<'line', ChartPoint[]> | null = null
 let resizeObserver: ResizeObserver | undefined
+let resizeFrame: number | undefined
+let lastWidth = 0
+let lastHeight = 0
 const colors = ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#facc15', '#2dd4bf', '#818cf8', '#60a5fa', '#fb7185']
 function getProviderColor(id: number | string) {
   const num = typeof id === 'number' ? id : Array.from(String(id)).reduce((acc, c) => acc + c.charCodeAt(0), 0)
   return colors[(Math.abs(num) - 1) % colors.length] || colors[0]
 }
+function scheduleRender() {
+  if (!import.meta.client) return
+  cancelAnimationFrame(resizeFrame)
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = undefined
+    const parent = canvas.value?.parentElement
+    if (!parent) return
+    const width = parent.clientWidth
+    const height = parent.clientHeight
+    if (Math.abs(width - lastWidth) < 1 && Math.abs(height - lastHeight) < 1) return
+    render()
+  })
+}
 function render() {
   if (!canvas.value) return
+  const parent = canvas.value.parentElement
+  if (parent) { lastWidth = parent.clientWidth; lastHeight = parent.clientHeight }
   chart?.destroy()
   const loc = locale.value === 'id' ? 'id-ID' : 'en-US'
   const isLight = theme.value === 'light'
@@ -69,7 +87,7 @@ watch(() => [props.series, props.metric, props.from, props.to, props.intervalMin
 onMounted(() => {
   render()
   if (canvas.value?.parentElement) {
-    resizeObserver = new ResizeObserver(() => render())
+    resizeObserver = new ResizeObserver(() => scheduleRender())
     resizeObserver.observe(canvas.value.parentElement)
   }
 })
