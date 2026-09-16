@@ -34,6 +34,7 @@ const { locale, setLocale, t } = useI18n()
 .lang-switcher {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 4px;
   background: #131c2e;
   border: 1px solid #263349;

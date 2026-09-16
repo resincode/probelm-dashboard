@@ -884,6 +884,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
 .workspace-header {
   height: 54px;
   flex-shrink: 0;
+  min-width: 0;
   padding: 0 18px;
   border-bottom: 1px solid #263349;
   display: flex;
@@ -891,10 +892,13 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   justify-content: space-between;
 }
 .brand {
+  min-width: 0;
   color: #e5edf8;
   font-size: 19px;
   letter-spacing: -0.5px;
 }
+.brand strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-header > .row:last-child { min-width: 0; flex: 0 0 auto; }
 .brand svg {
   color: #38bdf8;
 }
@@ -1242,7 +1246,7 @@ summary {
     max-height: 58px;
   }
   .history-panel {
-    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
   }
   .history-blocks {
     min-height: 26px;

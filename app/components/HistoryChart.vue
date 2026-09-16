@@ -52,11 +52,13 @@ function render() {
       plugins: {
         legend: { display: !compact, position: 'top', labels: { color: legendColor, boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, font: { size: 12 } } },
         tooltip: {
+          enabled: !compact,
+          position: compact ? 'nearest' : 'average',
           callbacks: {
             title: items => items[0]?.parsed.x != null ? new Date(items[0].parsed.x).toLocaleString(loc) : '',
             label: item => `${item.dataset.label}: ${item.parsed.y?.toLocaleString(loc, { maximumFractionDigits: 2 }) ?? t('workspace.noMeasurementsYet')} ${props.metric === 'ratePerSec' ? 'tok/s' : 'ms'}`
           }
-        },
+        }
       },
       scales: {
         x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: compact ? 4 : 7, maxRotation: 0, autoSkip: true, callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
