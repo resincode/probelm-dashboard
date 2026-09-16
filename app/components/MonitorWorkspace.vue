@@ -1014,7 +1014,10 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   flex-direction: column;
   gap: 8px;
   padding: 14px;
+  overflow: hidden;
 }
+.chart-card .primary-chart { min-width: 0; overflow: hidden; }
+.chart-card .chart-surface { overflow: hidden; border-radius: 6px; }
 .primary-chart {
   flex: 1;
   min-height: 240px;
@@ -1240,6 +1243,9 @@ summary {
   }
   .chart-card .provider-overlays {
     max-height: 58px;
+  }
+  .chart-card .primary-chart {
+    min-height: 0;
   }
   .history-panel {
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
