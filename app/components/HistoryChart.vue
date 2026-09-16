@@ -59,8 +59,8 @@ function render() {
         },
       },
       scales: {
-        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: compact ? 4 : 7, maxRotation: 0, autoSkip: true, callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
-        y: { beginAtZero: true, title: { display: !compact, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: compact ? 5 : 9, precision: 0, callback: value => `${value}${props.metric === 'ratePerSec' ? ' tok/s' : ' ms'}` }, grid: { color: gridColor } },
+        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: compact ? 3 : 7, maxRotation: 0, autoSkip: true, callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
+        y: { beginAtZero: true, title: { display: !compact, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: compact ? 4 : 9, precision: 0, padding: compact ? 6 : 3, callback: value => { const n = Number(value); if (!compact) return `${value}${props.metric === 'ratePerSec' ? ' tok/s' : ' ms'}`; if (props.metric === 'ratePerSec') return `${n} tok/s`; return n >= 1000 ? `${(n / 1000).toLocaleString(loc, { maximumFractionDigits: 1 })}k ms` : `${n} ms` } }, grid: { color: gridColor } },
       },
     },
   })
