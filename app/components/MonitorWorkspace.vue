@@ -52,9 +52,9 @@ let overviewRequest = 0
 let resizeStart: { x: number; width: number } | null = null
 
 const statuses: MonitorStatus[] = ['up', 'slow', 'down', 'stale', 'no-data', 'configuration-error']
-const rangeDays: Record<string, number> = { '12h': 0.5, '24h': 1, '7d': 7 }
+const rangeDays: Record<string, number> = { '6h': 0.25, '12h': 0.5, '24h': 1, '7d': 7 }
 const selectedId = computed(() => Number(route.query.model || route.params.id) || overview.value?.models[0]?.id || 0)
-const range = computed(() => ['12h', '24h', '7d', 'custom'].includes(String(route.query.range)) ? String(route.query.range) : '12h')
+const range = computed(() => ['6h', '12h', '24h', '7d', 'custom'].includes(String(route.query.range)) ? String(route.query.range) : '6h')
 const profile = computed(() => typeof route.query.profile === 'string' ? route.query.profile : '')
 const selectedModel = computed(() => overview.value?.models.find(model => model.id === selectedId.value))
 
@@ -193,7 +193,7 @@ async function loadHistory(resetProviders = false) {
   if (!selectedId.value) { history.value = null; return }
   historyLoading.value = true; historyError.value = ''
   const to = range.value === 'custom' ? Number(route.query.to) : Date.now()
-  const from = range.value === 'custom' ? Number(route.query.from) : to - (rangeDays[range.value] ?? 0.5) * 86400000
+  const from = range.value === 'custom' ? Number(route.query.from) : to - (rangeDays[range.value] ?? 0.25) * 86400000
   if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 86400000) { history.value = null; historyError.value = 'Choose a valid range up to 366 days.'; historyLoading.value = false; return }
   customFrom.value = localDate(from); customTo.value = localDate(to)
   const params = new URLSearchParams({ from: String(from), to: String(to) })
@@ -224,7 +224,7 @@ function applyCustom() {
 
 function setRange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  if (value === 'custom') { void query({ range: 'custom', from: String(new Date(customFrom.value).getTime() || Date.now() - 43200000), to: String(new Date(customTo.value).getTime() || Date.now()) }); return }
+  if (value === 'custom') { void query({ range: 'custom', from: String(new Date(customFrom.value).getTime() || Date.now() - 21600000), to: String(new Date(customTo.value).getTime() || Date.now()) }); return }
   void query({ range: value, from: undefined, to: undefined })
 }
 
@@ -432,6 +432,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
               <div class="range-controls">
                 <label>{{ t('workspace.timeRange') }}
                   <select :value="range" @change="setRange">
+                    <option value="6h">{{ t('workspace.last6h') }}</option>
                     <option value="12h">{{ t('workspace.last12h') }}</option>
                     <option value="24h">{{ t('workspace.last24h') }}</option>
                     <option value="7d">{{ t('workspace.last7d') }}</option>
