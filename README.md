@@ -1,6 +1,6 @@
 # ProbeLM dashboard
 
-Public model monitoring and historical comparisons, with private provider administration. Nuxt/Vue serves the UI; a separate worker schedules the pinned [`probelm` / `mtest`](https://github.com/resincode/probelm) CLI. The web process never executes probes.
+Public model monitoring and historical comparisons, with private provider administration. Nuxt/Vue serves the UI; a separate worker schedules the pinned [`probelm` / `mtest`](https://github.com/keton-id/probelm) CLI. The web process never executes probes.
 
 ## Podman: Mac, then Linux
 

@@ -4,7 +4,7 @@
 FROM docker.io/library/rust:1.94-bookworm AS probelm
 ARG PROBELM_REV=2ddbafb60c78a05f9ad4be49f507ffcc857a2f52
 WORKDIR /src
-RUN git init . && git remote add origin https://github.com/resincode/probelm.git \
+RUN git init . && git remote add origin https://github.com/keton-id/probelm.git \
     && git fetch --depth 1 origin master && git checkout --detach FETCH_HEAD \
     && CARGO_BUILD_JOBS=1 cargo build --locked --release --bin probelm --bin mtest
 # Nuxt requires Node >=24.11 within the 24 LTS line; better-sqlite3 requires >=22.
