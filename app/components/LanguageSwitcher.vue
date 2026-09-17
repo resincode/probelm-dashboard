@@ -35,11 +35,12 @@ const { locale, setLocale, t } = useI18n()
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #131c2e;
-  border: 1px solid #263349;
+  background: var(--bg-input, #131c2e);
+  border: 1px solid var(--border-color, #263349);
   border-radius: 6px;
   padding: 3px 6px;
   font-size: 11px;
+  flex-shrink: 0;
 }
 .globe-icon {
   color: #70849f;
@@ -60,8 +61,8 @@ const { locale, setLocale, t } = useI18n()
   color: #e5edf8;
 }
 .lang-btn.active {
-  color: #38bdf8;
-  background: #1e293b;
+  color: var(--accent-color, #38bdf8);
+  background: var(--bg-hover, #1e293b);
 }
 .divider {
   color: #334155;

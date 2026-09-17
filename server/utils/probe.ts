@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { ProbeInsert, ProviderModel, RunStatus } from './db'
 import { createSafeLookup } from './network'
+import { completionSeenInChunks } from './sse'
 import { prepareProviderTarget } from './provider-store'
 import { acquireRun, completeRun, renewRun, type RunLease } from './scheduler'
 
@@ -69,25 +70,27 @@ async function createRelay(target: { apiBaseUrl: string; apiKey: string }, model
     let model: string | null = null
     let streaming = false
     let complete = false
-    const fail = () => { if (model && !complete) failedModels.add(model) }
+    let upstreamEnded = false
+    let downstreamClosed = false
+    const fail = () => {
+      if (model && !complete && !upstreamEnded && !downstreamClosed) failedModels.add(model)
+    }
     const subpath = path.startsWith('/v1/') ? path.slice(3) : path
     const destination = new URL(`${basePath}${subpath}`, targetUrl.origin)
     const request = (destination.protocol === 'https:' ? httpsRequest : httpRequest)(destination, {
       method: incoming.method, lookup, agent: destination.protocol === 'https:' ? httpsAgent : httpAgent,
       headers: { authorization: `Bearer ${target.apiKey}`, 'content-type': 'application/json', accept: incoming.headers.accept || '*/*', 'accept-encoding': 'identity' },
     }, (response) => {
-      let sawDone = false
-      let tail = ''
+      const completion = { tail: '', done: false }
       if ((response.statusCode || 502) >= 400) fail()
       response.on('data', (chunk: Buffer) => {
-        if (!streaming || sawDone) return
+        if (!streaming || completion.done) return
         // Check only protocol completion; all timing/token measurements remain in mtest.
-        const text = tail + chunk.toString('utf8')
-        sawDone = /(?:^|\n)data:\s*\[DONE\](?:\r?\n|$)/.test(text)
-        tail = text.slice(-64)
+        completionSeenInChunks(completion, chunk.toString('utf8'))
       })
       response.on('end', () => {
-        if (!response.complete || (streaming && !sawDone)) fail()
+        if (!response.complete || (streaming && !completion.done)) fail()
+        upstreamEnded = true
         complete = true
       })
       if ((response.statusCode || 502) >= 300 && (response.statusCode || 502) < 400) {
@@ -106,7 +109,10 @@ async function createRelay(target: { apiBaseUrl: string; apiKey: string }, model
     request.on('close', () => { clearTimeout(timeout); requests.delete(request) })
     request.on('error', () => { fail(); if (!outgoing.headersSent) outgoing.writeHead(502).end(); else outgoing.destroy() })
     incoming.on('aborted', () => { fail(); request.destroy() })
-    outgoing.on('close', () => { fail(); request.destroy() })
+    outgoing.on('close', () => {
+      downstreamClosed = true
+      request.destroy()
+    })
     if (incoming.method === 'GET') incoming.pipe(request)
     else {
       const chunks: Buffer[] = []

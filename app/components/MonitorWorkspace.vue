@@ -15,6 +15,7 @@ const historyError = ref('')
 const search = ref('')
 const statusFilter = ref('all')
 const providerFilter = ref(typeof route.query.provider === 'string' ? route.query.provider : 'all')
+const includeInactive = ref(false)
 const sortBy = ref<'name-asc' | 'name-desc' | 'ttft-asc' | 'ttft-desc' | 'rate-desc' | 'rate-asc'>('name-asc')
 const listMode = ref<'list' | 'cards'>('list')
 const panelWidth = ref(280)
@@ -52,9 +53,9 @@ let overviewRequest = 0
 let resizeStart: { x: number; width: number } | null = null
 
 const statuses: MonitorStatus[] = ['up', 'slow', 'down', 'stale', 'no-data', 'configuration-error']
-const rangeDays: Record<string, number> = { '12h': 0.5, '24h': 1, '7d': 7 }
+const rangeDays: Record<string, number> = { '6h': 0.25, '12h': 0.5, '24h': 1, '7d': 7 }
 const selectedId = computed(() => Number(route.query.model || route.params.id) || overview.value?.models[0]?.id || 0)
-const range = computed(() => ['12h', '24h', '7d', 'custom'].includes(String(route.query.range)) ? String(route.query.range) : '12h')
+const range = computed(() => ['6h', '12h', '24h', '7d', 'custom'].includes(String(route.query.range)) ? String(route.query.range) : '6h')
 const profile = computed(() => typeof route.query.profile === 'string' ? route.query.profile : '')
 const selectedModel = computed(() => overview.value?.models.find(model => model.id === selectedId.value))
 
@@ -73,8 +74,15 @@ const monitorsByModel = computed(() => {
   }
   return grouped
 })
+const availableProviders = computed(() => {
+  const all = overview.value?.providers ?? []
+  return includeInactive.value ? all : all.filter(p => p.enabled)
+})
 
-function modelMonitors(id: number) { return monitorsByModel.value.get(id) ?? [] }
+function modelMonitors(id: number) {
+  const list = monitorsByModel.value.get(id) ?? []
+  return includeInactive.value ? list : list.filter(m => m.enabled)
+}
 function primaryMonitor(id: number) {
   const list = modelMonitors(id)
   return list[0]
@@ -83,7 +91,8 @@ function primaryMonitor(id: number) {
 const filteredModels = computed(() => {
   const list = (overview.value?.models ?? []).filter(model => {
     if (!`${model.displayName} ${model.canonicalName}`.toLowerCase().includes(search.value.toLowerCase())) return false
-    const monitors = monitorsByModel.value.get(model.id) ?? []
+    const monitors = modelMonitors(model.id)
+    if (!includeInactive.value && !monitors.length) return false
     return monitors.some(monitor => (providerFilter.value === 'all' || monitor.providerId === Number(providerFilter.value)) && (statusFilter.value === 'all' || monitor.status === statusFilter.value)) || (!monitors.length && statusFilter.value === 'all' && providerFilter.value === 'all')
   })
   return list.sort((a, b) => {
@@ -120,12 +129,12 @@ const multiProviderCount = computed(() => {
 })
 
 const providerRecap = computed(() => {
-  return (overview.value?.providers ?? []).map(provider => {
-    const count = (overview.value?.monitors ?? []).filter(m => m.providerId === provider.id && m.enabled).length
+  const providers = includeInactive.value ? (overview.value?.providers ?? []) : (overview.value?.providers ?? []).filter(p => p.enabled)
+  return providers.map(provider => {
+    const count = (overview.value?.monitors ?? []).filter(m => m.providerId === provider.id && (includeInactive.value || m.enabled)).length
     return { id: provider.id, name: provider.name, count }
   })
 })
-
 const visibleSeries = computed(() => history.value?.series.filter(series => providerIds.value.includes(series.provider.id)) ?? [])
 const sampleRows = computed(() => visibleSeries.value.flatMap(series => series.points.map(point => ({ point, provider: series.provider.name }))).sort((a, b) => b.point.ts - a.point.ts))
 const samplePage = ref(0)
@@ -193,11 +202,12 @@ async function loadHistory(resetProviders = false) {
   if (!selectedId.value) { history.value = null; return }
   historyLoading.value = true; historyError.value = ''
   const to = range.value === 'custom' ? Number(route.query.to) : Date.now()
-  const from = range.value === 'custom' ? Number(route.query.from) : to - (rangeDays[range.value] ?? 0.5) * 86400000
+  const from = range.value === 'custom' ? Number(route.query.from) : to - (rangeDays[range.value] ?? 0.25) * 86400000
   if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 86400000) { history.value = null; historyError.value = 'Choose a valid range up to 366 days.'; historyLoading.value = false; return }
   customFrom.value = localDate(from); customTo.value = localDate(to)
   const params = new URLSearchParams({ from: String(from), to: String(to) })
   if (profile.value) params.set('profile', profile.value)
+  if (includeInactive.value) params.set('includeInactive', 'true')
   try {
     const response = await fetch(`/api/models/${selectedId.value}/history?${params}`)
     if (!response.ok) throw new Error(`History unavailable (${response.status}).`)
@@ -224,7 +234,7 @@ function applyCustom() {
 
 function setRange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  if (value === 'custom') { void query({ range: 'custom', from: String(new Date(customFrom.value).getTime() || Date.now() - 43200000), to: String(new Date(customTo.value).getTime() || Date.now()) }); return }
+  if (value === 'custom') { void query({ range: 'custom', from: String(new Date(customFrom.value).getTime() || Date.now() - 21600000), to: String(new Date(customTo.value).getTime() || Date.now()) }); return }
   void query({ range: value, from: undefined, to: undefined })
 }
 
@@ -250,10 +260,17 @@ onMounted(async () => {
     if (Number.isFinite(preferences.panelWidth)) panelWidth.value = Math.max(220, Math.min(460, preferences.panelWidth))
     const storedFilter = localStorage.getItem('probelm-provider-filter')
     if (storedFilter && typeof route.query.provider !== 'string') providerFilter.value = storedFilter
+    const storedIncludeInactive = localStorage.getItem('probelm-include-inactive')
+    if (storedIncludeInactive !== null) includeInactive.value = storedIncludeInactive === 'true'
   } catch { /* Use defaults */ }
   await loadOverview()
   if (!historyLoading.value) await loadHistory(true)
   timer = window.setInterval(refresh, 60000)
+})
+
+watch(includeInactive, (val) => {
+  try { localStorage.setItem('probelm-include-inactive', String(val)) } catch {}
+  void loadHistory(true)
 })
 
 onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyRequest; ++overviewRequest })
@@ -267,7 +284,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
         <NuxtLink class="brand row" to="/"><Activity :size="22" /><strong>{{ t('common.brand') }}</strong></NuxtLink>
         <span class="muted small desktop-only">{{ t('common.tagline') }}</span>
       </div>
-      <div class="row" style="gap: 12px; align-items: center;">
+      <div class="row header-actions" style="gap: 10px; align-items: center;">
         <button
           v-if="overview"
           type="button"
@@ -278,7 +295,8 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
           @click="workerDialog?.showModal()"
         >
           <span class="worker-dot" :class="{ pulsing: overview.worker.online, offline: !overview.worker.online }" />
-          {{ overview.worker.online ? t('common.workerOnline') : t('common.workerOffline') }}
+          <span class="worker-badge-label-long desktop-only">{{ overview.worker.online ? t('common.workerOnline') : t('common.workerOffline') }}</span>
+          <span class="worker-badge-label-short mobile-only">{{ overview.worker.online ? 'Online' : 'Offline' }}</span>
         </button>
         <button class="icon-button" :disabled="loading || historyLoading" :aria-label="t('common.refresh')" @click="refresh">
           <RefreshCw :size="15" />
@@ -316,8 +334,16 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
             <label>{{ t('workspace.providerLabel') }}
               <select v-model="providerFilter">
                 <option value="all">{{ t('workspace.allProviders') }}</option>
-                <option v-for="provider in overview?.providers" :key="provider.id" :value="String(provider.id)">{{ provider.name }}</option>
+                <option v-for="provider in availableProviders" :key="provider.id" :value="String(provider.id)">
+                  {{ provider.name }}{{ !provider.enabled ? t('workspace.inactiveSuffix') : '' }}
+                </option>
               </select>
+            </label>
+          </div>
+          <div class="row spread filter-options" style="margin-top: 2px;">
+            <label class="check small">
+              <input v-model="includeInactive" type="checkbox" />
+              <span>{{ t('workspace.includeInactive') }}</span>
             </label>
           </div>
           <label class="sort-field">
@@ -431,6 +457,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
               <div class="range-controls">
                 <label>{{ t('workspace.timeRange') }}
                   <select :value="range" @change="setRange">
+                    <option value="6h">{{ t('workspace.last6h') }}</option>
                     <option value="12h">{{ t('workspace.last12h') }}</option>
                     <option value="24h">{{ t('workspace.last24h') }}</option>
                     <option value="7d">{{ t('workspace.last7d') }}</option>
@@ -446,20 +473,13 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
             </form>
           </section>
           <section class="chart-card panel" aria-label="Primary model chart">
-            <div class="comparison-heading">
-              <div>
-                <p class="eyebrow">{{ t('workspace.providerComparisonEyebrow') }}</p>
-                <h2>{{ t('workspace.providerComparisonTitle') }}</h2>
-              </div>
-              <span class="muted small">{{ t('workspace.providerComparisonHint') }}</span>
-            </div>
-            <div class="row spread">
+            <div class="row spread chart-card-header">
               <div class="row metric-tabs" role="group" aria-label="Chart metric">
-                <button class="metric-tab" :aria-pressed="metric === 'ttftMs'" :title="t('workspace.ttftHelp')" @click="metric = 'ttftMs'"><Timer :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.ttft') }}</strong><small>{{ t('workspace.ttftHelp') }}</small></span></button>
-                <button class="metric-tab" :aria-pressed="metric === 'totalMs'" :title="t('workspace.totalLatencyHelp')" @click="metric = 'totalMs'"><Gauge :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.totalLatency') }}</strong><small>{{ t('workspace.totalLatencyHelp') }}</small></span></button>
-                <button class="metric-tab" :aria-pressed="metric === 'ratePerSec'" :title="t('workspace.throughputHelp')" @click="metric = 'ratePerSec'"><Zap :size="22" aria-hidden="true" /><span><strong>{{ t('workspace.throughput') }}</strong><small>{{ t('workspace.throughputHelp') }}</small></span></button>
+                <button class="metric-tab" :aria-pressed="metric === 'ttftMs'" :title="t('workspace.ttftHelp')" @click="metric = 'ttftMs'"><Timer :size="20" aria-hidden="true" /><span><strong>{{ t('workspace.ttft') }}</strong><small>{{ t('workspace.ttftHelp') }}</small></span></button>
+                <button class="metric-tab" :aria-pressed="metric === 'totalMs'" :title="t('workspace.totalLatencyHelp')" @click="metric = 'totalMs'"><Gauge :size="20" aria-hidden="true" /><span><strong>{{ t('workspace.totalLatency') }}</strong><small>{{ t('workspace.totalLatencyHelp') }}</small></span></button>
+                <button class="metric-tab" :aria-pressed="metric === 'ratePerSec'" :title="t('workspace.throughputHelp')" @click="metric = 'ratePerSec'"><Zap :size="20" aria-hidden="true" /><span><strong>{{ t('workspace.throughput') }}</strong><small>{{ t('workspace.throughputHelp') }}</small></span></button>
               </div>
-              <span class="muted small">{{ t('workspace.samplesInfo', { n: sampleRows.length.toLocaleString() }) }}</span>
+              <span class="muted small samples-info-text">{{ t('workspace.samplesInfo', { n: sampleRows.length.toLocaleString() }) }}</span>
             </div>
             <div v-if="history" class="provider-overlays provider-comparison-chips" role="group" aria-label="Provider overlays">
               <label v-for="series in history.series" :key="series.provider.id" class="check provider-comparison-chip">
@@ -505,7 +525,9 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
                 </h2>
                 <span class="muted small">{{ t('workspace.revision') }}: {{ series.modelRevision || t('workspace.unspecified') }} · {{ series.summary.samples.toLocaleString() }} samples</span>
               </div>
-              <div class="history-blocks" :aria-label="`${series.provider.name} status timeline`"><button v-for="bucket in series.buckets" :key="bucket.start" class="history-block" :class="bucket.status" :aria-label="`${date(bucket.start)} to ${date(bucket.end)}: ${bucket.status}, ${bucket.samples} samples, ${bucket.failures} failures, ${bucket.missing} missing. Open details.`" :title="`${date(bucket.start)} – ${date(bucket.end)}\n${bucket.status} · ${bucket.samples} samples · ${bucket.failures} failures · ${bucket.missing} missing`" @click="openBucket(series, bucket)" /></div>
+              <div class="history-blocks-wrapper">
+                <div class="history-blocks" :aria-label="`${series.provider.name} status timeline`"><button v-for="bucket in series.buckets" :key="bucket.start" class="history-block" :class="bucket.status" :aria-label="`${date(bucket.start)} to ${date(bucket.end)}: ${bucket.status}, ${bucket.samples} samples, ${bucket.failures} failures, ${bucket.missing} missing. Open details.`" :title="`${date(bucket.start)} – ${date(bucket.end)}\n${bucket.status} · ${bucket.samples} samples · ${bucket.failures} failures · ${bucket.missing} missing`" @click="openBucket(series, bucket)" /></div>
+              </div>
               <div class="row spread muted small"><span>{{ date(history.from) }}</span><span>{{ date(history.to) }}</span></div>
             </article>
             <details class="panel sample-details" open>
@@ -985,8 +1007,10 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
   overflow-y: auto;
+}
+.model-detail > * {
+  flex-shrink: 0;
 }
 .detail-heading {
   flex-shrink: 0;
@@ -1013,31 +1037,29 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   flex: 1;
 }
 .chart-card {
-  min-height: 320px;
-  height: 390px;
+  height: auto;
+  min-height: 0;
   flex: none;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: 12px;
+  padding: 16px;
 }
 .primary-chart {
-  flex: 1;
-  min-height: 240px;
+  width: 100%;
+  height: 350px;
+  min-height: 350px;
   position: relative;
 }
-.metric-tabs {
-  gap: 4px;
-}
-.metric-tabs button {
-  padding: 4px 9px;
-  font-size: 11px;
+.chart-card-header {
+  align-items: center;
+  gap: 8px;
 }
 .provider-overlays {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  max-height: 40px;
+  gap: 6px 12px;
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -1046,23 +1068,15 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   align-items: center;
   gap: 5px;
   padding: 4px 7px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-color, #334155);
   border-radius: 999px;
-  background: #0f1724;
+  background: var(--bg-input, #0f1724);
   white-space: nowrap;
+  font-size: 11px;
 }
 .provider-comparison-chip:has(input:checked) {
-  border-color: #38bdf8;
-  background: #173148;
-}
-@media (max-width: 700px) {
-  .provider-comparison-chips { max-height: 74px; gap: 5px; }
-  .provider-comparison-chip { font-size: 11px; }
-}
-.primary-chart {
-  flex: 1;
-  min-height: 200px;
-  position: relative;
+  border-color: var(--accent-color, #38bdf8);
+  background: var(--bg-active, #173148);
 }
 .chart-empty {
   position: absolute;
@@ -1071,11 +1085,12 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   pointer-events: none;
 }
 .history-panel {
-  flex: 1;
-  min-height: 200px;
+  flex: none;
+  flex-shrink: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .timeline-heading, .comparison-heading {
   display: flex;
@@ -1091,7 +1106,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
   flex-wrap: wrap;
 }
 .provider-history {
-  padding: 10px;
+  padding: 12px;
 }
 .provider-metrics {
   display: flex;
@@ -1110,50 +1125,18 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
 .provider-metrics strong {
   font-size: 12px;
 }
-.history-blocks {
-  display: flex;
-  gap: 2px;
-  height: 22px;
-  margin-bottom: 6px;
-}
-.history-block {
-  flex: 1;
-  min-width: 2px;
-  min-height: 30px;
-  border: 2px solid transparent;
-  border-radius: 5px;
-  padding: 0;
-  opacity: 1;
-  box-shadow: inset 0 -3px 0 rgba(0,0,0,.22);
-}
-.history-block.up { background: #15803d; border-color: #4ade80; }
-.history-block.slow { background: #b45309; border-color: #fbbf24; }
-.history-block.down { background: #b91c1c; border-color: #f87171; }
-.history-block.stale { background: #92400e; border-color: #f59e0b; }
-.history-block.no-data { background: #475569; border-color: #cbd5e1; }
-.history-block.configuration-error { background: #a21caf; border-color: #f0abfc; }
-:global([data-theme="light"]) .history-block.up { background: #bbf7d0; border-color: #15803d; }
-:global([data-theme="light"]) .history-block.slow { background: #fef3c7; border-color: #b45309; }
-:global([data-theme="light"]) .history-block.down { background: #fecaca; border-color: #b91c1c; }
-:global([data-theme="light"]) .history-block.stale { background: #fed7aa; border-color: #c2410c; }
-:global([data-theme="light"]) .history-block.no-data { background: #e2e8f0; border-color: #475569; }
-:global([data-theme="light"]) .history-block.configuration-error { background: #f5d0fe; border-color: #a21caf; }
-.history-block:hover,
-.history-block:focus-visible {
-  opacity: 1;
-  outline: 3px solid var(--accent-color);
-  outline-offset: 2px;
-  transform: translateY(-2px);
-}
-@media (max-width: 700px) {
-  .history-block { min-height: 26px; border-width: 1px; }
+.history-blocks-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
 }
 .table-scroll {
   overflow-x: auto;
-  max-height: 280px;
+  max-height: 320px;
 }
 .sample-record {
-  border-top: 1px solid #263349;
+  border-top: 1px solid var(--border-color, #263349);
   padding-top: 14px;
   margin-top: 14px;
 }
@@ -1166,24 +1149,19 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
 summary {
   cursor: pointer;
   font-size: 12px;
-  color: #b8c8df;
+  color: var(--text-muted, #b8c8df);
 }
 .sample-details {
-  padding: 10px;
+  padding: 12px;
 }
+
 @media (max-width: 900px) {
   .view-mode-controls {
     display: none;
   }
   .model-detail {
-    padding: 10px;
-    gap: 8px;
-  }
-  .workspace-header {
-    padding: 0 10px;
-  }
-  .desktop-only {
-    display: none;
+    padding: 12px;
+    gap: 10px;
   }
   .model-sidebar {
     width: 240px;
@@ -1191,16 +1169,21 @@ summary {
   .resize-handle {
     display: none;
   }
-  .chart-card {
-    height: 320px;
-  }
 }
-@media (max-width: 700px) {
-  .workspace-header {
-    height: 50px;
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
   }
   .mobile-only {
     display: inline-flex;
+  }
+  .workspace-header {
+    height: 50px;
+    padding: 0 10px;
+  }
+  .header-actions {
+    gap: 6px !important;
   }
   .model-sidebar {
     display: none;
@@ -1217,82 +1200,48 @@ summary {
     position: fixed;
     inset: 0;
     z-index: 25;
-    background: #020611bb;
+    background: rgba(2, 6, 23, 0.75);
   }
   .detail-heading h1 {
-    font-size: 17px;
+    font-size: 18px;
+  }
+  .range-controls {
+    width: 100%;
   }
   .range-controls > label {
+    width: 100%;
     min-width: 0;
-    width: 120px;
   }
-  .worker-label {
-    font-size: 10px;
+  .range-controls select {
+    width: 100%;
   }
   .chart-card {
-    height: 280px;
+    padding: 12px;
+    gap: 10px;
+    height: auto;
+    min-height: 0;
   }
-}
-@media (max-width: 700px) {
-  .workspace-header {
-    height: 50px;
+  .chart-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
-  .mobile-only {
-    display: inline-flex;
+  .samples-info-text {
+    font-size: 11px;
+    text-align: right;
   }
-  .model-sidebar {
-    display: none;
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: min(320px, 85vw);
-    z-index: 30;
-  }
-  .model-sidebar.drawer-open {
-    display: flex;
-  }
-  .drawer-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 25;
-    background: #020611bb;
-  }
-  .detail-heading h1 {
-    font-size: 17px;
-  }
-  .range-controls > label {
-    min-width: 0;
-    width: 120px;
-  }
-  .worker-label {
-    font-size: 10px;
-  }
-  .comparison-heading, .timeline-heading {
-    align-items: flex-start;
-  }
-  .timeline-heading .status-legend {
-    justify-content: flex-start;
-  }
-  .chart-card {
-    height: 330px;
-  }
-  .chart-card .provider-overlays {
-    max-height: 58px;
+  .primary-chart {
+    height: 250px;
+    min-height: 250px;
   }
   .history-panel {
-    padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  }
-  .history-blocks {
-    min-height: 26px;
-    gap: 3px;
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   }
   .provider-history > .row.spread {
     align-items: flex-start;
   }
-  .provider-history > .row.spread > .muted {
-    flex-basis: 100%;
-  }
 }
+
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;

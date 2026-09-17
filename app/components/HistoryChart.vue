@@ -20,7 +20,7 @@ function getProviderColor(id: number | string) {
 }
 function scheduleRender() {
   if (!import.meta.client) return
-  cancelAnimationFrame(resizeFrame)
+  if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame)
   resizeFrame = requestAnimationFrame(() => {
     resizeFrame = undefined
     const parent = canvas.value?.parentElement
@@ -58,8 +58,8 @@ function render() {
     type: 'line', data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false, normalized: false,
-      layout: { padding: compact ? { top: 4, right: 4, bottom: 2, left: 2 } : { top: 4, right: 8, bottom: 4, left: 4 } },
-      interaction: { mode: 'nearest', intersect: compact },
+      layout: { padding: compact ? { top: 6, right: 6, bottom: 4, left: 2 } : { top: 6, right: 12, bottom: 6, left: 6 } },
+      interaction: { mode: 'nearest', intersect: false, axis: 'x' },
       onClick: (_event, elements) => {
         const element = elements[0]
         if (!element) return
@@ -77,8 +77,22 @@ function render() {
         },
       },
       scales: {
-        x: { type: 'linear', min: props.from, max: props.to, grid: { color: gridColor }, ticks: { color: textColor, maxTicksLimit: compact ? 4 : 7, maxRotation: 0, autoSkip: true, callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) } },
-        y: { beginAtZero: true, title: { display: !compact, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor }, ticks: { color: textColor, maxTicksLimit: compact ? 5 : 9, precision: 0, callback: value => `${value}${props.metric === 'ratePerSec' ? ' tok/s' : ' ms'}` }, grid: { color: gridColor } },
+        x: {
+          type: 'linear', min: props.from, max: props.to, grid: { color: gridColor },
+          ticks: {
+            color: textColor, maxTicksLimit: compact ? 3 : 7, maxRotation: 0, autoSkip: true,
+            callback: value => new Date(Number(value)).toLocaleString(loc, compact ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: !compact, text: props.metric === 'ratePerSec' ? 'tokens / second' : 'milliseconds', color: textColor },
+          ticks: {
+            color: textColor, maxTicksLimit: compact ? 5 : 9, precision: 0,
+            callback: value => compact ? (Number(value) >= 1000 ? `${(Number(value) / 1000).toFixed(1)}k` : value) : `${value}${props.metric === 'ratePerSec' ? ' tok/s' : ' ms'}`
+          },
+          grid: { color: gridColor }
+        },
       },
     },
   })
