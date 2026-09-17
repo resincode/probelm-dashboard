@@ -15,6 +15,7 @@ const historyError = ref('')
 const search = ref('')
 const statusFilter = ref('all')
 const providerFilter = ref(typeof route.query.provider === 'string' ? route.query.provider : 'all')
+const includeInactive = ref(false)
 const sortBy = ref<'name-asc' | 'name-desc' | 'ttft-asc' | 'ttft-desc' | 'rate-desc' | 'rate-asc'>('name-asc')
 const listMode = ref<'list' | 'cards'>('list')
 const panelWidth = ref(280)
@@ -73,8 +74,15 @@ const monitorsByModel = computed(() => {
   }
   return grouped
 })
+const availableProviders = computed(() => {
+  const all = overview.value?.providers ?? []
+  return includeInactive.value ? all : all.filter(p => p.enabled)
+})
 
-function modelMonitors(id: number) { return monitorsByModel.value.get(id) ?? [] }
+function modelMonitors(id: number) {
+  const list = monitorsByModel.value.get(id) ?? []
+  return includeInactive.value ? list : list.filter(m => m.enabled)
+}
 function primaryMonitor(id: number) {
   const list = modelMonitors(id)
   return list[0]
@@ -83,7 +91,8 @@ function primaryMonitor(id: number) {
 const filteredModels = computed(() => {
   const list = (overview.value?.models ?? []).filter(model => {
     if (!`${model.displayName} ${model.canonicalName}`.toLowerCase().includes(search.value.toLowerCase())) return false
-    const monitors = monitorsByModel.value.get(model.id) ?? []
+    const monitors = modelMonitors(model.id)
+    if (!includeInactive.value && !monitors.length) return false
     return monitors.some(monitor => (providerFilter.value === 'all' || monitor.providerId === Number(providerFilter.value)) && (statusFilter.value === 'all' || monitor.status === statusFilter.value)) || (!monitors.length && statusFilter.value === 'all' && providerFilter.value === 'all')
   })
   return list.sort((a, b) => {
@@ -120,12 +129,12 @@ const multiProviderCount = computed(() => {
 })
 
 const providerRecap = computed(() => {
-  return (overview.value?.providers ?? []).map(provider => {
-    const count = (overview.value?.monitors ?? []).filter(m => m.providerId === provider.id && m.enabled).length
+  const providers = includeInactive.value ? (overview.value?.providers ?? []) : (overview.value?.providers ?? []).filter(p => p.enabled)
+  return providers.map(provider => {
+    const count = (overview.value?.monitors ?? []).filter(m => m.providerId === provider.id && (includeInactive.value || m.enabled)).length
     return { id: provider.id, name: provider.name, count }
   })
 })
-
 const visibleSeries = computed(() => history.value?.series.filter(series => providerIds.value.includes(series.provider.id)) ?? [])
 const sampleRows = computed(() => visibleSeries.value.flatMap(series => series.points.map(point => ({ point, provider: series.provider.name }))).sort((a, b) => b.point.ts - a.point.ts))
 const samplePage = ref(0)
@@ -198,6 +207,7 @@ async function loadHistory(resetProviders = false) {
   customFrom.value = localDate(from); customTo.value = localDate(to)
   const params = new URLSearchParams({ from: String(from), to: String(to) })
   if (profile.value) params.set('profile', profile.value)
+  if (includeInactive.value) params.set('includeInactive', 'true')
   try {
     const response = await fetch(`/api/models/${selectedId.value}/history?${params}`)
     if (!response.ok) throw new Error(`History unavailable (${response.status}).`)
@@ -250,10 +260,17 @@ onMounted(async () => {
     if (Number.isFinite(preferences.panelWidth)) panelWidth.value = Math.max(220, Math.min(460, preferences.panelWidth))
     const storedFilter = localStorage.getItem('probelm-provider-filter')
     if (storedFilter && typeof route.query.provider !== 'string') providerFilter.value = storedFilter
+    const storedIncludeInactive = localStorage.getItem('probelm-include-inactive')
+    if (storedIncludeInactive !== null) includeInactive.value = storedIncludeInactive === 'true'
   } catch { /* Use defaults */ }
   await loadOverview()
   if (!historyLoading.value) await loadHistory(true)
   timer = window.setInterval(refresh, 60000)
+})
+
+watch(includeInactive, (val) => {
+  try { localStorage.setItem('probelm-include-inactive', String(val)) } catch {}
+  void loadHistory(true)
 })
 
 onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyRequest; ++overviewRequest })
@@ -317,8 +334,16 @@ onUnmounted(() => { if (timer) clearInterval(timer); resizeEnd(); ++historyReque
             <label>{{ t('workspace.providerLabel') }}
               <select v-model="providerFilter">
                 <option value="all">{{ t('workspace.allProviders') }}</option>
-                <option v-for="provider in overview?.providers" :key="provider.id" :value="String(provider.id)">{{ provider.name }}</option>
+                <option v-for="provider in availableProviders" :key="provider.id" :value="String(provider.id)">
+                  {{ provider.name }}{{ !provider.enabled ? t('workspace.inactiveSuffix') : '' }}
+                </option>
               </select>
+            </label>
+          </div>
+          <div class="row spread filter-options" style="margin-top: 2px;">
+            <label class="check small">
+              <input v-model="includeInactive" type="checkbox" />
+              <span>{{ t('workspace.includeInactive') }}</span>
             </label>
           </div>
           <label class="sort-field">

@@ -98,7 +98,7 @@ export function publicOverview(): PublicOverview {
 function average(values: number[]): number | null { return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null }
 function percentile(values: number[], fraction: number): number | null { return values.length ? values[Math.max(0, Math.ceil(values.length * fraction) - 1)] ?? null : null }
 
-export function modelHistory(modelId: number, from: number, to: number, requestedProfile?: string): ModelHistory | null {
+export function modelHistory(modelId: number, from: number, to: number, requestedProfile?: string, includeInactive = false): ModelHistory | null {
   const database = getDb()
   const model = database.prepare('SELECT id,canonical_name AS canonicalName,display_name AS displayName,icon_key AS iconKey FROM monitored_models WHERE id=?').get(modelId) as CanonicalModel | undefined
   if (!model) return null
@@ -122,8 +122,13 @@ export function modelHistory(modelId: number, from: number, to: number, requeste
   const filteredMissed = missed.filter(row => profileId(row.profile_version,row.model_revision) === selectedProfile)
   const overview = publicOverview()
   const providers = new Map(overview.providers.map(provider => [provider.id,provider]))
-  const currentMappings = overview.monitors.filter(monitor => monitor.modelId===modelId)
-  const providerIds = new Set([...currentMappings.map(mapping=>mapping.providerId), ...filtered.map(row=>row.provider_id), ...filteredMissed.map(row=>row.provider_id)])
+  const currentMappings = overview.monitors.filter(monitor => monitor.modelId===modelId && (includeInactive || monitor.enabled))
+  let rawProviderIds = [...currentMappings.map(mapping=>mapping.providerId), ...filtered.map(row=>row.provider_id), ...filteredMissed.map(row=>row.provider_id)]
+  if (!includeInactive) {
+    const activeProviderIds = new Set(overview.providers.filter(p => p.enabled).map(p => p.id))
+    rawProviderIds = rawProviderIds.filter(id => activeProviderIds.has(id))
+  }
+  const providerIds = new Set(rawProviderIds)
   const bucketMs = Math.max(60_000, Math.ceil((to-from)/96/60_000)*60_000)
   const count = Math.ceil((to-from)/bucketMs)
   const byProvider = new Map<number,ResultRow[]>()

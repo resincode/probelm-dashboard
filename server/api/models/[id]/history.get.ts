@@ -12,7 +12,8 @@ export default defineEventHandler((event) => {
   if (query.profile !== undefined && (typeof query.profile !== 'string' || query.profile.length > 512)) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid profile' })
   }
-  const history = modelHistory(modelId, from, to, query.profile)
+  const includeInactive = query.includeInactive === 'true'
+  const history = modelHistory(modelId, from, to, query.profile, includeInactive)
   if (!history) throw createError({ statusCode: 404, statusMessage: 'Model not found' })
   return history
 })
