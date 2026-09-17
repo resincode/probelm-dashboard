@@ -79,7 +79,7 @@ onMounted(load)
           <button :disabled="busy" @click="test(provider)">{{ t('providers.testConnection') }}</button>
           <NuxtLink class="button" :to="`/admin/models?provider=${provider.id}`">{{ t('providers.catalogAndMappings') }}</NuxtLink>
           <button @click="edit(provider)">{{ t('common.edit') }}</button>
-          <button :disabled="busy" @click="toggle(provider)">{{ provider.enabled ? t('common.disabled') : t('common.enabled') }}</button>
+          <button :disabled="busy" @click="toggle(provider)">{{ provider.enabled ? t('common.disable') : t('common.enable') }}</button>
         </div>
       </article>
       <p v-if="!providers.length" class="empty">{{ t('providers.empty') }}</p>
